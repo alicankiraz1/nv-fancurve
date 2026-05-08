@@ -10,7 +10,7 @@ from pathlib import Path
 from types import FrameType
 
 from nvfan.config import Config
-from nvfan.nvidia import NvidiaError, query_stats, set_fan_auto, set_fan_speed
+from nvfan.nvidia import NvidiaError, query_stats, set_fan_auto, set_fan_speeds
 from nvfan.xorg import is_xorg_running
 
 log = logging.getLogger(__name__)
@@ -50,8 +50,12 @@ class FanDaemon:
             self.last_temps[gpu_id] = stats.temp
             return
 
+        fan_ids = self.config.fan_ids
+        if fan_ids is None:
+            raise RuntimeError("No fan IDs configured")
+
         try:
-            set_fan_speed(gpu_id, self.config.fan_id, target_fan, self.config.display)
+            set_fan_speeds(gpu_id, fan_ids, target_fan, self.config.display)
         except NvidiaError as e:
             log.error("[gpu %d] set fan failed: %s", gpu_id, e)
             return

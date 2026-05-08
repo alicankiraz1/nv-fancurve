@@ -2,7 +2,7 @@
 
 interval_seconds = 5
 gpu_ids = [0]
-fan_id = 0
+fan_ids = [0]
 display = ":1"
 log_file = "/var/log/nv-fancurve.log"
 log_only_on_change = true

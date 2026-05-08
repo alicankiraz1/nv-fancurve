@@ -33,7 +33,8 @@ class Config:
 
     interval_seconds: int = 5
     gpu_ids: list[int] = field(default_factory=lambda: [0])
-    fan_id: int = 0
+    fan_id: int | str = 0
+    fan_ids: list[int] | str | None = None
     display: str = ":1"
     log_file: str = "/var/log/nv-fancurve.log"
     log_only_on_change: bool = True
@@ -49,8 +50,11 @@ class Config:
             or any(not isinstance(gpu_id, int) or gpu_id < 0 for gpu_id in self.gpu_ids)
         ):
             raise ValueError("gpu_ids must be a non-empty list of non-negative integers")
-        if not isinstance(self.fan_id, int) or self.fan_id < 0:
-            raise ValueError("fan_id must be a non-negative integer")
+        self.fan_ids = self._normalize_fan_ids(self.fan_ids, self.fan_id)
+        if self.fan_ids == "all":
+            self.fan_id = "all"
+        else:
+            self.fan_id = self.fan_ids[0]
         if not isinstance(self.display, str) or not self.display:
             raise ValueError("display must be a non-empty string")
         if not isinstance(self.log_file, str) or not self.log_file:
@@ -63,6 +67,27 @@ class Config:
         temps = [point.temp for point in self.curve]
         if len(set(temps)) != len(temps):
             raise ValueError("Fan curve contains duplicate temperature points")
+
+    @staticmethod
+    def _normalize_fan_ids(fan_ids: list[int] | str | None, fan_id: int | str) -> list[int] | str:
+        if fan_ids is None:
+            if fan_id == "all":
+                return "all"
+            if not isinstance(fan_id, int) or fan_id < 0:
+                raise ValueError("fan_id must be a non-negative integer or 'all'")
+            return [fan_id]
+
+        if fan_ids == "all":
+            return "all"
+        if (
+            not isinstance(fan_ids, list)
+            or not fan_ids
+            or any(not isinstance(value, int) or value < 0 for value in fan_ids)
+        ):
+            raise ValueError("fan_ids must be a non-empty list of non-negative integers or 'all'")
+        if len(set(fan_ids)) != len(fan_ids):
+            raise ValueError("fan_ids contains duplicate fan IDs")
+        return fan_ids
 
     def fan_for_temp(self, temp: int) -> int:
         """Return fan speed (%) for a given temperature using a piecewise-linear curve."""
@@ -118,6 +143,8 @@ def load_config(path: Path) -> Config:
     unknown = set(data) - _known_config_keys()
     if unknown:
         raise ValueError(f"Unknown config key(s): {', '.join(sorted(unknown))}")
+    if "fan_id" in data and "fan_ids" in data:
+        raise ValueError("Config cannot include both fan_id and fan_ids")
 
     curve = _load_curve(data.get("curve", []), path)
     options = {key: value for key, value in data.items() if key != "curve"}

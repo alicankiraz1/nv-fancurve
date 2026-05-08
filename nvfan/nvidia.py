@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 
@@ -83,22 +84,40 @@ def query_stats(gpu_id: int = 0) -> GpuStats:
 
 def set_fan_speed(gpu_id: int, fan_id: int, speed_pct: int, display: str = ":1") -> None:
     """Set fan speed for a single fan via nvidia-settings on the given X display."""
+    set_fan_speeds(gpu_id, [fan_id], speed_pct, display)
+
+
+def list_fans(display: str = ":1") -> list[int]:
+    """Return fan IDs reported by nvidia-settings on the given X display."""
+    env = os.environ.copy()
+    env["DISPLAY"] = display
+
+    out = _run(["nvidia-settings", "-q", "fans"], env=env)
+    return sorted({int(match) for match in re.findall(r"\[fan:(\d+)\]", out)})
+
+
+def set_fan_speeds(
+    gpu_id: int,
+    fan_ids: list[int] | str,
+    speed_pct: int,
+    display: str = ":1",
+) -> None:
+    """Set fan speed for every configured fan via nvidia-settings."""
     if not 0 <= speed_pct <= 100:
         raise ValueError(f"Invalid speed {speed_pct}: must be 0-100")
 
     env = os.environ.copy()
     env["DISPLAY"] = display
 
-    _run(
-        [
-            "nvidia-settings",
-            "-a",
-            f"[gpu:{gpu_id}]/GPUFanControlState=1",
-            "-a",
-            f"[fan:{fan_id}]/GPUTargetFanSpeed={speed_pct}",
-        ],
-        env=env,
-    )
+    resolved_fan_ids = list_fans(display) if fan_ids == "all" else fan_ids
+    if not resolved_fan_ids:
+        raise NvidiaError("No NVIDIA fans found")
+
+    cmd = ["nvidia-settings", "-a", f"[gpu:{gpu_id}]/GPUFanControlState=1"]
+    for fan_id in resolved_fan_ids:
+        cmd.extend(["-a", f"[fan:{fan_id}]/GPUTargetFanSpeed={speed_pct}"])
+
+    _run(cmd, env=env)
 
 
 def set_fan_auto(gpu_id: int, display: str = ":1") -> None:

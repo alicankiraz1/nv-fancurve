@@ -70,7 +70,7 @@ ruff check .
 1. A tiny Xorg server starts at boot on `:1` with `Coolbits=28`.
 2. The `nv-fancurve` daemon reads GPU temperature every `interval_seconds`.
 3. It computes a target fan speed from a piecewise-linear curve.
-4. It calls `nvidia-settings` with `DISPLAY=:1` to set the fan.
+4. It calls `nvidia-settings` with `DISPLAY=:1` to set every configured fan.
 5. It logs only on fan changes by default and systemd restarts it on failure.
 6. On shutdown, it restores automatic fan control.
 
@@ -81,7 +81,7 @@ The installed config lives at `/etc/nv-fancurve/config.toml`.
 ```toml
 interval_seconds = 5
 gpu_ids = [0]
-fan_id = 0
+fan_ids = [0]
 display = ":1"
 log_file = "/var/log/nv-fancurve.log"
 log_only_on_change = true
@@ -120,7 +120,9 @@ Config fields:
 
 - `interval_seconds`: how often the daemon samples GPU temperature.
 - `gpu_ids`: NVIDIA GPU indices from `nvidia-smi`; use `[0, 1]` for two GPUs.
-- `fan_id`: fan index passed to `nvidia-settings`.
+- `fan_ids`: fan indices passed to `nvidia-settings`; use `[0, 1]` for dual-fan cards.
+- `fan_id`: legacy single-fan config key. `fan_id = 0` still works, and `fan_id = "all"` tells
+  install-time detection to replace it with every fan reported by `nvidia-settings -q fans`.
 - `display`: X display used by the headless Xorg service.
 - `hysteresis`: minimum temperature movement before the daemon recalculates and writes a fan
   target. This avoids noisy fan changes around curve boundaries.
@@ -194,6 +196,26 @@ gpu_ids = [0, 1]
 
 The same curve is applied to each GPU. For unusual fan mappings, confirm fan indices with
 `nvidia-settings -q fans` on the headless display.
+
+## Multi-Fan GPUs
+
+Set every fan you want the daemon to control:
+
+```toml
+fan_ids = [0, 1]
+```
+
+`nv-fancurve install` starts the headless Xorg service, runs `nvidia-settings -q fans`, and updates
+the default config with every detected fan on first install. This avoids the common dual-fan failure
+mode where one fan follows the curve while the other stays at the stock target.
+
+For explicit auto-detection in a custom config, use:
+
+```toml
+fan_id = "all"
+```
+
+The daemon still runs as one systemd service and restores automatic GPU fan control once on shutdown.
 
 ## Troubleshooting
 
