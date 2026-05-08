@@ -1,0 +1,12 @@
+[Unit]
+Description=nv-fancurve headless Xorg for NVIDIA fan control
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/Xorg :1 -config /etc/X11/xorg.conf.d/10-nv-fancurve.conf -nolisten tcp
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

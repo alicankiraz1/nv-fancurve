@@ -1,0 +1,37 @@
+# nv-fancurve aggressive config for sustained inference or training.
+
+interval_seconds = 5
+gpu_ids = [0]
+fan_id = 0
+display = ":1"
+log_file = "/var/log/nv-fancurve.log"
+log_only_on_change = true
+hysteresis = 2
+
+[[curve]]
+temp = 45
+fan = 30
+
+[[curve]]
+temp = 55
+fan = 40
+
+[[curve]]
+temp = 60
+fan = 50
+
+[[curve]]
+temp = 70
+fan = 65
+
+[[curve]]
+temp = 75
+fan = 75
+
+[[curve]]
+temp = 80
+fan = 85
+
+[[curve]]
+temp = 85
+fan = 100

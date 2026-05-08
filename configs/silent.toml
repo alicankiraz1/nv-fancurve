@@ -1,0 +1,27 @@
+interval_seconds = 5
+gpu_ids = [0]
+fan_id = 0
+display = ":1"
+log_file = "/var/log/nv-fancurve.log"
+log_only_on_change = true
+hysteresis = 3
+
+[[curve]]
+temp = 50
+fan = 25
+
+[[curve]]
+temp = 65
+fan = 35
+
+[[curve]]
+temp = 75
+fan = 50
+
+[[curve]]
+temp = 82
+fan = 75
+
+[[curve]]
+temp = 88
+fan = 100

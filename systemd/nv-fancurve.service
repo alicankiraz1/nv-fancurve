@@ -1,0 +1,14 @@
+[Unit]
+Description=nv-fancurve GPU fan curve daemon
+After=nv-fancurve-xorg.service nvidia-persistenced.service
+Requires=nv-fancurve-xorg.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/bin/nv-fancurve run --config /etc/nv-fancurve/config.toml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
