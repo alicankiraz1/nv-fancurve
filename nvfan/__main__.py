@@ -11,6 +11,7 @@ from nvfan import __version__
 from nvfan.config import load_config
 from nvfan.daemon import FanDaemon, setup_logging
 from nvfan.installer import DEFAULT_CONFIG_PATH, install, uninstall
+from nvfan.nvidia import NvidiaError
 from nvfan.presets import PRESETS
 
 
@@ -91,6 +92,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         return args.func(args)
+    except NvidiaError as e:
+        print(f"nv-fancurve: {e}", file=sys.stderr)
+        return 1
     except KeyboardInterrupt:
         return 130
 

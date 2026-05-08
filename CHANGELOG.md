@@ -18,3 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Built-in `aggressive`, `balanced`, and `silent` fan curve presets.
 - Unit tests for curve interpolation and TOML config loading.
 - GitHub Actions test workflow for Python 3.9 through 3.12.
+- Graceful CLI error reporting when NVIDIA tooling is unavailable.
