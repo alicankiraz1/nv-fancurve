@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dual/multi-fan GPU support with `fan_ids = [0, 1]`.
 - Install-time fan detection using `nvidia-settings -q fans`.
 
+### Changed
+
+- Documented a PEP 668-safe Ubuntu installation flow using `pipx` and virtual environments.
+
 ## [0.1.0] - 2026-05-08
 
 ### Added

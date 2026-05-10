@@ -43,25 +43,52 @@ Fan %
 - `nvidia-settings`.
 - Xorg. `nv-fancurve install` creates a tiny headless Xorg display on `:1`.
 - Python 3.9 or newer.
+- `pipx` for Ubuntu 24.04+ / Debian systems that block global `pip install` via PEP 668.
 - Root access for installation, because systemd units and `/etc/X11` config are written.
 
 ## Quickstart
 
+Ubuntu 24.04+ marks the system Python environment as externally managed, so install the CLI with
+`pipx` instead of global `pip`.
+
 ```bash
 sudo apt update
-sudo apt install xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils nvidia-settings
+sudo apt install pipx python3-venv xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils nvidia-settings
 
-pip install nv-fancurve
-sudo nv-fancurve install
+pipx ensurepath
+export PATH="$PATH:$HOME/.local/bin"
+pipx install git+https://github.com/alicankiraz1/nv-fancurve.git
 
-systemctl status nv-fancurve
+sudo "$(command -v nv-fancurve)" install
+
+systemctl status nv-fancurve --no-pager
 ```
 
-For local development from this repository:
+If you already cloned this repository, install from the local checkout:
 
 ```bash
-pip install -e .[dev]
-pytest -v
+sudo apt update
+sudo apt install pipx python3-venv xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils nvidia-settings
+
+cd nv-fancurve
+export PATH="$PATH:$HOME/.local/bin"
+pipx install --force .
+sudo "$(command -v nv-fancurve)" install
+systemctl status nv-fancurve --no-pager
+```
+
+The `export PATH=...` line makes the `pipx` command shim visible in the current shell. The quoted
+`sudo "$(command -v nv-fancurve)" install` form matters because `sudo` often uses a restricted PATH
+and may not see `~/.local/bin/nv-fancurve`.
+
+For local development from this repository, use a virtual environment:
+
+```bash
+sudo apt install python3-venv
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest -v
 ruff check .
 ```
 
@@ -183,8 +210,9 @@ nv-fancurve status
 nv-fancurve presets
 ```
 
-`nv-fancurve run` stays in the foreground. The normal production path is `sudo nv-fancurve install`, which
-installs and starts `nv-fancurve-xorg.service` and `nv-fancurve.service`.
+`nv-fancurve run` stays in the foreground. The normal production path is
+`sudo "$(command -v nv-fancurve)" install`, which installs and starts `nv-fancurve-xorg.service`
+and `nv-fancurve.service`.
 
 ## Multi-GPU
 

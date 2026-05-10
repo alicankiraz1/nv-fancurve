@@ -7,7 +7,9 @@ Thanks for helping improve `nv-fancurve`.
 ```bash
 git clone https://github.com/alicankiraz1/nv-fancurve.git
 cd nv-fancurve
-pip install -e .[dev]
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
 ```
 
 ## Workflow

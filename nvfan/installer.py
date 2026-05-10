@@ -62,7 +62,7 @@ def _systemctl(*args: str) -> None:
 
 def _require_root() -> None:
     if hasattr(os, "geteuid") and os.geteuid() != 0:
-        log.error("This action requires root. Try: sudo nv-fancurve ...")
+        log.error('This action requires root. Try: sudo "$(command -v nv-fancurve)" ...')
         sys.exit(1)
 
 
