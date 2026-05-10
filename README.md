@@ -257,7 +257,8 @@ gpu_ids = [0, 1]
 
 This prevents all fans from being driven by one GPU's temperature. If you installed an older
 `nv-fancurve` version and see `gpu_ids = [0]` with a large global `fan_ids = [...]`, update and rerun
-install:
+install. If your NVIDIA driver does not support per-GPU fan queries, the installer falls back to
+splitting the global fan list evenly when it can do so cleanly, such as 6 fans across 2 GPUs:
 
 ```bash
 git pull

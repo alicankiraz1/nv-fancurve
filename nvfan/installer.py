@@ -89,6 +89,22 @@ def _format_gpu_ids(gpu_ids: list[int]) -> str:
     return f"gpu_ids = [{', '.join(str(gpu_id) for gpu_id in gpu_ids)}]"
 
 
+def _split_fans_evenly_by_gpu(
+    gpu_ids: list[int],
+    fan_ids: list[int],
+) -> dict[int, list[int]] | None:
+    if not gpu_ids or not fan_ids or len(fan_ids) % len(gpu_ids) != 0:
+        return None
+
+    chunk_size = len(fan_ids) // len(gpu_ids)
+    sorted_gpu_ids = sorted(gpu_ids)
+    sorted_fan_ids = sorted(fan_ids)
+    return {
+        gpu_id: sorted_fan_ids[index * chunk_size : (index + 1) * chunk_size]
+        for index, gpu_id in enumerate(sorted_gpu_ids)
+    }
+
+
 def _replace_gpu_ids_line(config_text: str, gpu_ids: list[int]) -> str:
     replacement = _format_gpu_ids(gpu_ids)
     pattern = re.compile(r"^gpu_ids\s*=.*$", re.MULTILINE)
@@ -200,8 +216,31 @@ def _apply_detected_hardware_config(config_path: Path, display: str) -> None:
         fan_map = list_fan_map(gpu_ids, display)
     except NvidiaError as e:
         log.warning("Could not detect per-GPU fans with nvidia-settings: %s", e)
-        config_path.write_text(_replace_gpu_ids_line(config_path.read_text(), gpu_ids))
-        _apply_detected_fan_ids(config_path, display)
+        text = _replace_gpu_ids_line(config_path.read_text(), gpu_ids)
+        try:
+            fan_ids = list_fans(display)
+        except (NvidiaError, RuntimeError) as fan_error:
+            log.warning("Could not detect fans with nvidia-settings: %s", fan_error)
+            config_path.write_text(text)
+            return
+
+        split_fan_map = _split_fans_evenly_by_gpu(gpu_ids, fan_ids)
+        if len(gpu_ids) > 1 and split_fan_map:
+            text = _remove_fan_config_lines(text)
+            text = _remove_fan_ids_by_gpu_table(text)
+            text = _append_fan_ids_by_gpu_table(text, split_fan_map)
+            config_path.write_text(text)
+            log.info(
+                "Split NVIDIA fans %s across GPUs %s as %s; updated %s",
+                fan_ids,
+                gpu_ids,
+                split_fan_map,
+                config_path,
+            )
+            return
+
+        config_path.write_text(_replace_fan_config_line(text, fan_ids))
+        log.info("Detected NVIDIA fans %s; updated %s", fan_ids, config_path)
         return
 
     text = _replace_gpu_ids_line(config_path.read_text(), gpu_ids)

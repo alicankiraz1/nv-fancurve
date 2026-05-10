@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dual/multi-fan GPU support with `fan_ids = [0, 1]`.
 - Install-time fan detection using `nvidia-settings -q fans`.
 - Per-GPU fan mapping with `fan_ids_by_gpu` for multi-GPU systems.
+- Fallback fan mapping that evenly splits global fan IDs when per-GPU fan queries are unsupported.
 
 ### Changed
 
