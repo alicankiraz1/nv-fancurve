@@ -87,13 +87,24 @@ def set_fan_speed(gpu_id: int, fan_id: int, speed_pct: int, display: str = ":1")
     set_fan_speeds(gpu_id, [fan_id], speed_pct, display)
 
 
-def list_fans(display: str = ":1") -> list[int]:
+def list_fans(display: str = ":1", gpu_id: int | None = None) -> list[int]:
     """Return fan IDs reported by nvidia-settings on the given X display."""
     env = os.environ.copy()
     env["DISPLAY"] = display
 
-    out = _run(["nvidia-settings", "-q", "fans"], env=env)
+    target = "fans" if gpu_id is None else f"[gpu:{gpu_id}]/fans"
+    out = _run(["nvidia-settings", "-q", target], env=env)
     return sorted({int(match) for match in re.findall(r"\[fan:(\d+)\]", out)})
+
+
+def list_fan_map(gpu_ids: list[int], display: str = ":1") -> dict[int, list[int]]:
+    """Return fan IDs keyed by GPU ID using per-GPU nvidia-settings queries."""
+    fan_map: dict[int, list[int]] = {}
+    for gpu_id in gpu_ids:
+        fans = list_fans(display, gpu_id=gpu_id)
+        if fans:
+            fan_map[gpu_id] = fans
+    return fan_map
 
 
 def set_fan_speeds(

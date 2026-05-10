@@ -14,7 +14,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from nvfan.config import load_config
-from nvfan.nvidia import NvidiaError, list_fans
+from nvfan.nvidia import NvidiaError, list_fan_map, list_fans, list_gpus
 from nvfan.xorg import write_xorg_conf
 
 log = logging.getLogger(__name__)
@@ -85,6 +85,18 @@ def _format_fan_ids(fan_ids: list[int]) -> str:
     return f"fan_ids = [{', '.join(str(fan_id) for fan_id in fan_ids)}]"
 
 
+def _format_gpu_ids(gpu_ids: list[int]) -> str:
+    return f"gpu_ids = [{', '.join(str(gpu_id) for gpu_id in gpu_ids)}]"
+
+
+def _replace_gpu_ids_line(config_text: str, gpu_ids: list[int]) -> str:
+    replacement = _format_gpu_ids(gpu_ids)
+    pattern = re.compile(r"^gpu_ids\s*=.*$", re.MULTILINE)
+    if pattern.search(config_text):
+        return pattern.sub(replacement, config_text, count=1)
+    return f"{replacement}\n{config_text}"
+
+
 def _replace_fan_config_line(config_text: str, fan_ids: list[int]) -> str:
     replacement = _format_fan_ids(fan_ids)
     pattern = re.compile(r"^fan_ids\s*=.*$|^fan_id\s*=.*$", re.MULTILINE)
@@ -104,9 +116,46 @@ def _replace_fan_config_line(config_text: str, fan_ids: list[int]) -> str:
     return "\n".join(lines) + trailing_newline
 
 
+def _remove_fan_config_lines(config_text: str) -> str:
+    pattern = re.compile(r"^fan_ids\s*=.*$|^fan_id\s*=.*$", re.MULTILINE)
+    lines = [line for line in config_text.splitlines() if not pattern.match(line)]
+    trailing_newline = "\n" if config_text.endswith("\n") else ""
+    return "\n".join(lines) + trailing_newline
+
+
+def _remove_fan_ids_by_gpu_table(config_text: str) -> str:
+    lines: list[str] = []
+    in_table = False
+    for line in config_text.splitlines():
+        stripped = line.strip()
+        if stripped == "[fan_ids_by_gpu]":
+            in_table = True
+            continue
+        if in_table and stripped.startswith("[") and stripped.endswith("]"):
+            in_table = False
+        if not in_table:
+            lines.append(line)
+    trailing_newline = "\n" if config_text.endswith("\n") else ""
+    return "\n".join(lines).rstrip() + trailing_newline
+
+
+def _append_fan_ids_by_gpu_table(config_text: str, fan_map: dict[int, list[int]]) -> str:
+    lines = ["", "[fan_ids_by_gpu]"]
+    for gpu_id in sorted(fan_map):
+        lines.append(f"{gpu_id} = [{', '.join(str(fan_id) for fan_id in fan_map[gpu_id])}]")
+    return f"{config_text.rstrip()}\n{chr(10).join(lines)}\n"
+
+
 def _config_requests_all(config_path: Path) -> bool:
     try:
         return load_config(config_path).fan_ids == "all"
+    except (OSError, ValueError):
+        return False
+
+
+def _config_has_fan_map(config_path: Path) -> bool:
+    try:
+        return bool(load_config(config_path).fan_ids_by_gpu)
     except (OSError, ValueError):
         return False
 
@@ -132,6 +181,45 @@ def _apply_detected_fan_ids(config_path: Path, display: str) -> None:
 
     config_path.write_text(_replace_fan_config_line(config_path.read_text(), fan_ids))
     log.info("Detected NVIDIA fans %s; updated %s", fan_ids, config_path)
+
+
+def _apply_detected_hardware_config(config_path: Path, display: str) -> None:
+    """Update GPU and fan config from detected NVIDIA hardware."""
+    try:
+        gpu_ids = list_gpus()
+    except NvidiaError as e:
+        log.warning("Could not detect GPUs with nvidia-smi: %s", e)
+        _apply_detected_fan_ids(config_path, display)
+        return
+
+    if not gpu_ids:
+        log.warning("No NVIDIA GPUs detected; keeping existing GPU and fan config")
+        return
+
+    try:
+        fan_map = list_fan_map(gpu_ids, display)
+    except NvidiaError as e:
+        log.warning("Could not detect per-GPU fans with nvidia-settings: %s", e)
+        config_path.write_text(_replace_gpu_ids_line(config_path.read_text(), gpu_ids))
+        _apply_detected_fan_ids(config_path, display)
+        return
+
+    text = _replace_gpu_ids_line(config_path.read_text(), gpu_ids)
+    if len(gpu_ids) > 1 and fan_map:
+        text = _remove_fan_config_lines(text)
+        text = _remove_fan_ids_by_gpu_table(text)
+        text = _append_fan_ids_by_gpu_table(text, fan_map)
+        config_path.write_text(text)
+        log.info(
+            "Detected NVIDIA GPUs %s and fan map %s; updated %s",
+            gpu_ids,
+            fan_map,
+            config_path,
+        )
+        return
+
+    config_path.write_text(text)
+    _apply_detected_fan_ids(config_path, display)
 
 
 def _command() -> str:
@@ -164,8 +252,10 @@ def install(config_source: Path | None = None) -> None:
     _systemctl("daemon-reload")
     _systemctl("enable", "--now", "nv-fancurve-xorg.service")
     time.sleep(3)
-    if created_config or _config_requests_all(DEFAULT_CONFIG_PATH):
-        _apply_detected_fan_ids(DEFAULT_CONFIG_PATH, _config_display(DEFAULT_CONFIG_PATH))
+    if created_config or _config_requests_all(DEFAULT_CONFIG_PATH) or not _config_has_fan_map(
+        DEFAULT_CONFIG_PATH
+    ):
+        _apply_detected_hardware_config(DEFAULT_CONFIG_PATH, _config_display(DEFAULT_CONFIG_PATH))
     _systemctl("enable", "--now", "nv-fancurve.service")
 
     log.info("nv-fancurve installed and running. Check: systemctl status nv-fancurve")

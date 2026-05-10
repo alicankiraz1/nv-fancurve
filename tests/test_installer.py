@@ -1,4 +1,4 @@
-from nvfan.installer import _apply_detected_fan_ids
+from nvfan.installer import _apply_detected_fan_ids, _apply_detected_hardware_config
 
 
 def test_apply_detected_fan_ids_replaces_legacy_fan_id(tmp_path, monkeypatch):
@@ -49,3 +49,24 @@ def test_apply_detected_fan_ids_keeps_config_when_detection_fails(tmp_path, monk
     _apply_detected_fan_ids(config, ":1")
 
     assert config.read_text() == original
+
+
+def test_apply_detected_hardware_config_writes_gpu_fan_map(tmp_path, monkeypatch):
+    config = tmp_path / "config.toml"
+    config.write_text(
+        "gpu_ids = [0]\nfan_ids = [0, 1, 2, 3, 4, 5]\n\n[[curve]]\ntemp = 50\nfan = 40\n"
+    )
+    monkeypatch.setattr("nvfan.installer.list_gpus", lambda: [0, 1])
+    monkeypatch.setattr(
+        "nvfan.installer.list_fan_map",
+        lambda gpu_ids, display: {0: [0, 1, 2], 1: [3, 4, 5]},
+    )
+
+    _apply_detected_hardware_config(config, ":1")
+
+    text = config.read_text()
+    assert "gpu_ids = [0, 1]" in text
+    assert "fan_ids = [0, 1, 2, 3, 4, 5]" not in text
+    assert "[fan_ids_by_gpu]" in text
+    assert "0 = [0, 1, 2]" in text
+    assert "1 = [3, 4, 5]" in text

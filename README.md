@@ -245,6 +245,27 @@ fan_id = "all"
 
 The daemon still runs as one systemd service and restores automatic GPU fan control once on shutdown.
 
+For multi-GPU machines, install-time detection writes a GPU-to-fan map:
+
+```toml
+gpu_ids = [0, 1]
+
+[fan_ids_by_gpu]
+0 = [0, 1, 2]
+1 = [3, 4, 5]
+```
+
+This prevents all fans from being driven by one GPU's temperature. If you installed an older
+`nv-fancurve` version and see `gpu_ids = [0]` with a large global `fan_ids = [...]`, update and rerun
+install:
+
+```bash
+git pull
+pipx install --force .
+sudo "$(command -v nv-fancurve)" install
+sudo systemctl restart nv-fancurve
+```
+
 ## Troubleshooting
 
 `nvidia-settings: Unable to find display :1`

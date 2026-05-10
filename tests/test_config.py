@@ -158,3 +158,38 @@ def test_config_rejects_invalid_fan_ids():
         Config(fan_ids=[0, -1], curve=[CurvePoint(50, 40)])
     with pytest.raises(ValueError, match="duplicate"):
         Config(fan_ids=[0, 0], curve=[CurvePoint(50, 40)])
+
+
+def test_load_config_reads_fan_ids_by_gpu(tmp_path):
+    path = write_config(
+        tmp_path,
+        """
+gpu_ids = [0, 1]
+
+[[curve]]
+temp = 50
+fan = 40
+
+[fan_ids_by_gpu]
+0 = [0, 1, 2]
+1 = [3, 4, 5]
+""",
+    )
+
+    cfg = load_config(path)
+
+    assert cfg.fan_ids_by_gpu == {0: [0, 1, 2], 1: [3, 4, 5]}
+    assert cfg.fan_ids_for_gpu(0) == [0, 1, 2]
+    assert cfg.fan_ids_for_gpu(1) == [3, 4, 5]
+
+
+def test_fan_ids_by_gpu_falls_back_to_global_fan_ids():
+    cfg = Config(
+        gpu_ids=[0, 1],
+        fan_ids=[0, 1],
+        fan_ids_by_gpu={1: [2, 3]},
+        curve=[CurvePoint(50, 40)],
+    )
+
+    assert cfg.fan_ids_for_gpu(0) == [0, 1]
+    assert cfg.fan_ids_for_gpu(1) == [2, 3]

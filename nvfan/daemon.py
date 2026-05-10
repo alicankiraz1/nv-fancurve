@@ -50,9 +50,7 @@ class FanDaemon:
             self.last_temps[gpu_id] = stats.temp
             return
 
-        fan_ids = self.config.fan_ids
-        if fan_ids is None:
-            raise RuntimeError("No fan IDs configured")
+        fan_ids = self.config.fan_ids_for_gpu(gpu_id)
 
         try:
             set_fan_speeds(gpu_id, fan_ids, target_fan, self.config.display)
