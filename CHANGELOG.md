@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Documented a PEP 668-safe Ubuntu installation flow using `pipx` and virtual environments.
+- Removed the headless Xorg unit's self-referential `After=multi-user.target` ordering to avoid
+  systemd stop-ordering cycles.
 
 ## [0.1.0] - 2026-05-08
 

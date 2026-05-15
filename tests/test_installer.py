@@ -1,5 +1,17 @@
-from nvfan.installer import _apply_detected_fan_ids, _apply_detected_hardware_config
+from pathlib import Path
+
+from nvfan.installer import XORG_SERVICE, _apply_detected_fan_ids, _apply_detected_hardware_config
 from nvfan.nvidia import NvidiaError
+
+
+def test_xorg_service_does_not_order_after_own_install_target():
+    assert "WantedBy=multi-user.target" in XORG_SERVICE
+    assert "After=multi-user.target" not in XORG_SERVICE
+
+    packaged_unit = Path(__file__).resolve().parent.parent / "systemd" / "nv-fancurve-xorg.service"
+    text = packaged_unit.read_text()
+    assert "WantedBy=multi-user.target" in text
+    assert "After=multi-user.target" not in text
 
 
 def test_apply_detected_fan_ids_replaces_legacy_fan_id(tmp_path, monkeypatch):

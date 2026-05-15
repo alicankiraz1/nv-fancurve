@@ -26,7 +26,6 @@ DEFAULT_CONFIG_PATH = CONFIG_DIR / "config.toml"
 XORG_SERVICE = """\
 [Unit]
 Description=nv-fancurve headless Xorg for NVIDIA fan control
-After=multi-user.target
 
 [Service]
 Type=simple
